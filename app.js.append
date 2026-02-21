@@ -1,0 +1,189 @@
+
+// --- Feature 1: Browser Save/Load ---
+const SAVE_KEY = 'family_finance_plan_v1';
+
+function saveData() {
+    const data = {
+        inputs: {},
+        checkboxes: {},
+        children: [],
+        customEvents: [],
+        scenarios: savedScenarios || []
+    };
+
+    // 1. Static Inputs (IDs)
+    // Exclude dynamic inputs (no ID or inside dynamic containers) - simplest filter is asking for ID
+    const allInputs = document.querySelectorAll('input[id], select[id], textarea[id]');
+    allInputs.forEach(el => {
+        if (!el.id) return;
+        if (el.type === 'checkbox') {
+            data.checkboxes[el.id] = el.checked;
+        } else {
+            data.inputs[el.id] = el.value;
+        }
+    });
+
+    // 2. Children
+    const childEntries = document.querySelectorAll('.child-entry');
+    childEntries.forEach(entry => {
+        const mode = entry.dataset.mode;
+        const entryData = {
+            mode: mode,
+            // Mode specific
+            ageInput: entry.querySelector('.child-age-input')?.value,
+            yearInput: entry.querySelector('.child-year-input')?.value,
+            // Edu
+            edu_k: entry.querySelector('.edu-k')?.value,
+            edu_e: entry.querySelector('.edu-e')?.value,
+            edu_j: entry.querySelector('.edu-j')?.value,
+            edu_h: entry.querySelector('.edu-h')?.value,
+            edu_u: entry.querySelector('.edu-u')?.value,
+            // Juku
+            juku_active: entry.querySelector('.juku-toggle')?.checked,
+            juku_cost: entry.querySelector('.juku-cost')?.value,
+            juku_start: entry.querySelector('.juku-start')?.value,
+            juku_end: entry.querySelector('.juku-end')?.value
+        };
+        data.children.push(entryData);
+    });
+
+    // 3. Custom Events
+    // Reuse existing getter if possible, but we need to restore UI, so saving structure is better
+    // Actually getCustomEvents returns parsed data, not UI state. 
+    // But we can rebuild UI from that parsed data easily.
+    data.customEvents = getCustomEvents();
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    // Optional: show saved toast
+}
+
+function loadData() {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+
+    try {
+        const data = JSON.parse(raw);
+
+        // 1. Static Inputs
+        // Restore toggles first (might affect visibility)
+        for (const [id, checked] of Object.entries(data.checkboxes || {})) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.checked = checked;
+                el.dispatchEvent(new Event('change')); // Trigger toggle logic
+            }
+        }
+        for (const [id, val] of Object.entries(data.inputs || {})) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.value = val;
+                // Don't trigger 'input'/Change immediately to avoid massive recalcs? 
+                // But we need to update state.
+            }
+        }
+
+        // 2. Children
+        // Clear existing first (e.g. default child)
+        const childContainer = $('childrenContainer');
+        if (childContainer) childContainer.innerHTML = '';
+        childCount = 0; // Global var reset
+        
+        if (data.children && data.children.length > 0) {
+            data.children.forEach(cData => {
+                addChild(cData.mode);
+                // Get the last added child
+                const entries = document.querySelectorAll('.child-entry');
+                const lastEntry = entries[entries.length - 1];
+                if (lastEntry) {
+                    if (cData.mode === 'existing') {
+                        const input = lastEntry.querySelector('.child-age-input');
+                        if (input) input.value = cData.ageInput;
+                    } else {
+                        const input = lastEntry.querySelector('.child-year-input');
+                        if (input) input.value = cData.yearInput;
+                    }
+                    // Edu
+                    if (lastEntry.querySelector('.edu-k')) lastEntry.querySelector('.edu-k').value = cData.edu_k;
+                    if (lastEntry.querySelector('.edu-e')) lastEntry.querySelector('.edu-e').value = cData.edu_e;
+                    if (lastEntry.querySelector('.edu-j')) lastEntry.querySelector('.edu-j').value = cData.edu_j;
+                    if (lastEntry.querySelector('.edu-h')) lastEntry.querySelector('.edu-h').value = cData.edu_h;
+                    if (lastEntry.querySelector('.edu-u')) lastEntry.querySelector('.edu-u').value = cData.edu_u;
+                    // Juku
+                    const jukuToggle = lastEntry.querySelector('.juku-toggle');
+                    if (jukuToggle) {
+                        jukuToggle.checked = cData.juku_active;
+                        toggleJuku(jukuToggle); // Handler
+                    }
+                    if (lastEntry.querySelector('.juku-cost')) lastEntry.querySelector('.juku-cost').value = cData.juku_cost;
+                    if (lastEntry.querySelector('.juku-start')) lastEntry.querySelector('.juku-start').value = cData.juku_start;
+                    if (lastEntry.querySelector('.juku-end')) lastEntry.querySelector('.juku-end').value = cData.juku_end;
+
+                    updateChildCostSummary(); // Refresh preview
+                }
+            });
+        } else {
+             // No children saved? Leave empty or add default?
+             // Usually start blank or keep persistent.
+        }
+
+        // 3. Custom Events
+        const evtContainer = $('customEventsContainer');
+        if (evtContainer) evtContainer.innerHTML = '';
+        if (data.customEvents && data.customEvents.length > 0) {
+            data.customEvents.forEach(evt => {
+                addCustomEvent(); // Adds row
+                const rows = document.querySelectorAll('.custom-event-row');
+                const lastRow = rows[rows.length - 1];
+                if (lastRow) {
+                    lastRow.querySelector('.evt-age').value = evt.age;
+                    lastRow.querySelector('.evt-type').value = evt.type;
+                    lastRow.querySelector('.evt-amount').value = evt.amount;
+                    lastRow.querySelector('.custom-event-name').value = evt.name;
+                }
+            });
+        }
+
+        // 4. Scenarios
+        if (data.scenarios) {
+            savedScenarios = data.scenarios;
+            if (savedScenarios.length > 0) {
+                savedScenarios.forEach(sc => renderScenarioBar(sc)); // Rebuild UI chips
+                // renderResults will be called later to update Comparison Table
+            }
+        }
+
+        // 5. Run Calc
+        setTimeout(runSimulation, 200);
+
+    } catch (e) {
+        console.error('Failed to load data', e);
+    }
+}
+
+function clearData() {
+    if (!confirm('全てのデータを削除して初期状態に戻しますか？')) return;
+    localStorage.removeItem(SAVE_KEY);
+    location.reload();
+}
+
+// Attach Auto-Save
+document.addEventListener('DOMContentLoaded', () => {
+    // Load first
+    loadData();
+
+    // Show net income preview on load
+    updateNetIncomePreview();
+
+    // Attach listeners
+    const form = document.getElementById('planForm');
+    if (form) {
+        // Debounced save
+        form.addEventListener('input', debounce(saveData, 1000));
+        form.addEventListener('change', saveData);
+    }
+    // Also save on scenario add
+    const addScenBtn = document.getElementById('addScenarioBtn');
+    if (addScenBtn) {
+        addScenBtn.addEventListener('click', () => setTimeout(saveData, 500));
+    }
+});
