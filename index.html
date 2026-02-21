@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="家族の資金繰りシミュレーター - 年齢・年収・ライフイベントから100歳までの資金計画を自動作成">
+    <title>ライフプランシミュレーター | 家族の資金繰り計画</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- html2canvas and jsPDF for Feature 5: Export to PDF/Image -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+    <!-- Top Left Actions -->
+    <div class="top-left-actions">
+        <button id="usageGuideBtn" class="top-action-btn usage-guide-btn" onclick="openUsageGuide()" title="使い方を見る">
+            <span class="btn-icon">▶️</span>使い方
+        </button>
+        <button id="aboutBtn" class="top-action-btn about-btn" onclick="openAbout()" title="このアプリについて">
+            <span class="btn-icon">ℹ️</span>About
+        </button>
+    </div>
+
+    <!-- Usage Guide Modal -->
+    <div id="usageGuideModal" class="usage-guide-modal hidden">
+        <div class="usage-guide-content">
+            <button class="usage-guide-close" onclick="closeUsageGuide()">×</button>
+            <h3 style="margin-bottom: 1rem; text-align: center;">シミュレーションの使い方</h3>
+            <div class="usage-guide-video-container">
+                <img src="usage_guide.webp" alt="使い方確認動画"
+                    style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            </div>
+            <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
+                動画の通りに操作することで、すぐに使い方をマスターできます。
+            </p>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="aboutModal" class="usage-guide-modal hidden">
+        <div class="usage-guide-content about-content">
+            <button class="usage-guide-close" onclick="closeAbout()">×</button>
+            <h3 style="margin-bottom: 1.5rem; text-align: center; color: var(--accent);">このシミュレーターで出来ること</h3>
+
+            <div class="about-feature-list">
+                <div class="about-feature-item">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-text">
+                        <h4>100歳までの精緻な資金計画</h4>
+                        <p>現在の年齢から100歳までの収入・支出・資産残高の推移をグラフと表で可視化します。</p>
+                    </div>
+                </div>
+
+                <div class="about-feature-item">
+                    <div class="feature-icon">🏛️</div>
+                    <div class="feature-text">
+                        <h4>税金・社会保険料の自動計算</h4>
+                        <p>年収から手取り額を自動推計。住宅ローン控除や退職金控除など複雑な税制にも対応しています。</p>
+                    </div>
+                </div>
+
+                <div class="about-feature-item">
+                    <div class="feature-icon">📈</div>
+                    <div class="feature-text">
+                        <h4>NISA/iDeCoの最適化</h4>
+                        <p>資産運用（NISA・iDeCo）の積立から、老後の「Die with Zero」を目指した計画的な取り崩しまでシミュレーション可能です。</p>
+                    </div>
+                </div>
+
+                <div class="about-feature-item">
+                    <div class="feature-icon">👶</div>
+                    <div class="feature-text">
+                        <h4>詳細なライフイベント設計</h4>
+                        <p>結婚、出産から教育費（進路別）、住宅購入、車の買い替え、親の介護まで網羅的に設定できます。</p>
+                    </div>
+                </div>
+
+                <div class="about-feature-item">
+                    <div class="feature-icon">🔄</div>
+                    <div class="feature-text">
+                        <h4>シナリオ比較機能</h4>
+                        <p>「賃貸 vs 持ち家」や「60歳退職 vs 65歳退職」など、気になる比較をボタン1つで素早く確認できます。</p>
+                    </div>
+                </div>
+            </div>
+            <p style="text-align: center; margin-top: 2rem; font-size: 0.85rem; color: var(--text-secondary);">
+                定期的にデータを保存して、ライフプランの見直しにご活用ください。
+            </p>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">💰</span>
+                    <h1>ライフプランシミュレーター</h1>
+                </div>
+                <p class="tagline">あなたの未来を見える化する</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Input Section -->
+            <section class="input-section" id="inputSection">
+                <!-- Comparison Scenarios (Feature 4) -->
+                <div class="preset-section comparison-scenarios-panel">
+                    <span class="preset-label">ライフスタイルを比較(1クリックでシナリオ生成):</span>
+                    <div class="preset-buttons">
+                        <button type="button" class="btn btn-small btn-preset"
+                            onclick="compareScenarios('rent_vs_own')">賃貸 vs 持ち家</button>
+                        <button type="button" class="btn btn-small btn-preset"
+                            onclick="compareScenarios('public_vs_private')">教育(オール公立 vs 私立)</button>
+                        <button type="button" class="btn btn-small btn-preset"
+                            onclick="compareScenarios('work_vs_retire')">60歳退職 vs 65歳退職</button>
+                    </div>
+                </div>
+
+                <!-- Presets (Feature 5) -->
+                <div class="preset-section">
+                    <span class="preset-label">モデルケースを選択して入力を省略:</span>
+                    <div class="preset-buttons">
+                        <button type="button" class="btn btn-small btn-preset"
+                            onclick="loadPreset('standard')">平均的な4人家族</button>
+                        <button type="button" class="btn btn-small btn-preset"
+                            onclick="loadPreset('dinks')">共働きDINKs</button>
+                        <button type="button" class="btn btn-small btn-preset"
+                            onclick="loadPreset('single')">独身(FIRE志向)</button>
+                        <button type="button" class="btn btn-small btn-preset"
+                            onclick="loadPreset('senior')">セカンドライフ(60歳~)</button>
+                    </div>
+                </div>
+
+                <form id="planForm" novalidate>
+                    <div class="tab-nav">
+                        <button type="button" class="tab-btn active" data-tab="tab-basic"
+                            onclick="switchTab('tab-basic')">基本・経済</button>
+                        <button type="button" class="tab-btn" data-tab="tab-family"
+                            onclick="switchTab('tab-family')">家族・住居</button>
+                        <button type="button" class="tab-btn" data-tab="tab-work"
+                            onclick="switchTab('tab-work')">仕事・老後</button>
+                        <button type="button" class="tab-btn" data-tab="tab-asset"
+                            onclick="switchTab('tab-asset')">資産運用</button>
+                        <button type="button" class="tab-btn" data-tab="tab-event"
+                            onclick="switchTab('tab-event')">ライフイベント</button>
+                    </div>
+                    <!-- Basic Info Card -->
+                    <div class="card tab-basic">
+                        <div class="card-header">
+                            <span class="card-icon">👤</span>
+                            <h2>基本情報</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="myAge">あなたの年齢</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="myAge" min="18" max="80" value="30" required
+                                            oninput="updateNetIncomePreview()">
+                                        <span class="unit">歳</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="partnerAge">パートナーの年齢</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="partnerAge" min="18" max="80" value="28" required
+                                            oninput="updateNetIncomePreview()">
+                                        <span class="unit">歳</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="myIncome">あなたの年収（税込）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="myIncome" min="0" step="10" value="500" required
+                                            oninput="updateNetIncomePreview()">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <span class="hint" id="myNetIncomeHint" style="color:#10b981;">手取り目安: 計算中...</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="partnerIncome">パートナーの年収（税込）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="partnerIncome" min="0" step="10" value="400" required
+                                            oninput="updateNetIncomePreview()">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <span class="hint" id="partnerNetIncomeHint" style="color:#10b981;">手取り目安:
+                                        計算中...</span>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="currentSavings">現在の貯蓄額</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="currentSavings" min="0" step="10" value="300" required>
+                                        <span class="unit">万円</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="emergencyFund">生活防衛資金（キープする現金）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="emergencyFund" min="0" step="10" value="100">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <span class="hint">この金額を下回る不足分はNISAから自動補填</span>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="monthlyRent">家賃（月額）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="monthlyRent" min="0" step="1" value="10" required>
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:0.3rem; margin-top:0.3rem;">
+                                        <label for="rentInflation"
+                                            style="font-size:0.75rem; color:var(--text-secondary); white-space:nowrap;">家賃上昇率</label>
+                                        <div class="input-with-unit" style="width:100px;">
+                                            <input type="number" id="rentInflation" min="0" max="10" step="0.1"
+                                                value="0.5">
+                                            <span class="unit">%/年</span>
+                                        </div>
+                                    </div>
+                                    <span class="hint">住宅購入後は自動的に0になります</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="monthlyOther">その他生活費（月額）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="monthlyOther" min="0" step="1" value="15" required>
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <span class="hint">食費・光熱費・通信費・日用品等</span>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="annualSpecial">年間特別費（旅行・帰省等）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="annualSpecial" min="0" step="5" value="0">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <span class="hint">生活費には含まれない、年間の特別出費</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Economic Assumptions Card (NEW) -->
+                    <div class="card tab-basic">
+                        <div class="card-header">
+                            <span class="card-icon">📉</span>
+                            <h2>経済前提</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="inflationRate">インフレ率（年率）<span class="info-icon"
+                                            data-tooltip="将来の物価上昇率です。生活費や教育費などが毎年この率で上昇すると仮定して計算します。">?</span></label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="inflationRate" min="0" max="10" step="0.1" value="1.0">
+                                        <span class="unit">%</span>
+                                    </div>
+                                    <span class="hint">生活費・教育費等に毎年適用</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="salaryGrowth">昇給率（年率）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="salaryGrowth" min="0" max="10" step="0.1" value="1.5">
+                                        <span class="unit">%</span>
+                                    </div>
+                                    <span class="hint">実質昇給率（インフレ率が自動加算されます）</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Retirement Card -->
+                    <div class="card tab-work">
+                        <div class="card-header">
+                            <span class="card-icon">🏢</span>
+                            <h2>退職・年金</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="myRetirementAge">あなたの定年退職年齢</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="myRetirementAge" min="50" max="75" value="60">
+                                        <span class="unit">歳</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="myRetirementBonus">あなたの退職金</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="myRetirementBonus" min="0" step="100" value="2000">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="partnerRetirementAge">パートナーの定年退職年齢</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="partnerRetirementAge" min="50" max="75" value="60">
+                                        <span class="unit">歳</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="partnerRetirementBonus">パートナーの退職金</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="partnerRetirementBonus" min="0" step="100"
+                                            value="1500">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row early-retirement-row">
+                                <div class="form-group">
+                                    <div class="toggle-row compact">
+                                        <label class="toggle-label" for="myEarlyRetirement">あなたが早期離職する</label>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="myEarlyRetirement"
+                                                onchange="toggleEarlyRetirement('my')">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div id="myEarlyRetirementDetails" class="collapsible hidden">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="myQuitAge">離職する年齢</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="myQuitAge" min="25" max="70" value="50">
+                                                    <span class="unit">歳</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="myQuitIncome">離職後の年収（0で完全リタイア）</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="myQuitIncome" min="0" step="10" value="0">
+                                                    <span class="unit">万円</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <span class="hint">この年齢以降の給与収入が設定値になります</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <div class="toggle-row compact">
+                                        <label class="toggle-label" for="partnerEarlyRetirement">パートナーが早期離職する</label>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="partnerEarlyRetirement"
+                                                onchange="toggleEarlyRetirement('partner')">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div id="partnerEarlyRetirementDetails" class="collapsible hidden">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="partnerQuitAge">離職する年齢</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="partnerQuitAge" min="25" max="70"
+                                                        value="50">
+                                                    <span class="unit">歳</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="partnerQuitIncome">離職後の年収（0で完全リタイア）</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="partnerQuitIncome" min="0" step="10"
+                                                        value="0">
+                                                    <span class="unit">万円</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <span class="hint">この年齢以降の給与収入が設定値になります</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="section-divider"></div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="myPensionType">あなたの年金タイプ</label>
+                                    <select id="myPensionType">
+                                        <option value="employee" selected>厚生年金（会社員）</option>
+                                        <option value="national">国民年金のみ（自営業等）</option>
+                                        <option value="dependent">第3号被保険者（扶養）</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="partnerPensionType">パートナーの年金タイプ</label>
+                                    <select id="partnerPensionType">
+                                        <option value="employee" selected>厚生年金（会社員）</option>
+                                        <option value="national">国民年金のみ（自営業等）</option>
+                                        <option value="dependent">第3号被保険者（扶養）</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="myPension">あなたの年金受給額（年額）<span class="info-icon"
+                                            data-tooltip="65歳から受け取る公的年金の額面金額（年額）を入力してください。ねんきん定期便などを参考にします。">?</span></label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="myPension" min="0" step="1" value="180">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <button type="button" class="btn btn-small" style="margin-top:0.3rem;"
+                                        onclick="autoCalcPension('my')">
+                                        📊 年収から自動計算
+                                    </button>
+                                </div>
+                                <div class="form-group">
+                                    <label for="partnerPension">パートナーの年金受給額（年額）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="partnerPension" min="0" step="1" value="120">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <button type="button" class="btn btn-small" style="margin-top:0.3rem;"
+                                        onclick="autoCalcPension('partner')">
+                                        📊 年収から自動計算
+                                    </button>
+                                </div>
+                            </div>
+                            <span class="hint">65歳から受給開始。自動計算は年収と加入期間からの概算値です。</span>
+                            <div class="form-row">
+                                <div class="form-group" style="margin-top: 1rem;">
+                                    <label for="pensionMacroSlide">年金のマクロ経済スライド（調整率・年率）<span class="info-icon"
+                                            data-tooltip="年金額の改定はインフレ率をベースに行われますが、そこからマクロ経済スライド分が差し引かれます。">?</span></label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="pensionMacroSlide" min="0" max="2" step="0.1"
+                                            value="1.0">
+                                        <span class="unit">%</span>
+                                    </div>
+                                    <span class="hint"
+                                        style="margin-bottom: 0.5rem; display: block;">インフレ率からこの数値を引いた率が、実際の年金増加率として計算されます</span>
+
+                                    <div class="info-box"
+                                        style="background-color: rgba(99, 102, 241, 0.05); border-left: 3px solid var(--accent); padding: 0.8rem; border-radius: 4px; font-size: 0.8rem; color: var(--text-secondary);">
+                                        <strong>💡 マクロ経済スライドとは？</strong><br>
+                                        少子高齢化にあわせて、年金の支給水準を調整する仕組みです。物価や賃金が上がっても、その上昇分をそのまま年金に反映させず、<strong>毎年約1%弱</strong>差し引いて年金の上昇を抑えます。<br>
+                                        <em>例：物価が2%上がっても、マクロ経済スライドが1%なら、年金は1%しか増えません。結果として、年金の実質的な価値（購買力）は徐々に目減りしていきます。</em>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Corporate Pension (企業年金・退職等年金給付) -->
+                            <h3
+                                style="font-size: 1rem; color: var(--text-primary); margin-top: 1.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3rem;">
+                                企業年金・退職等年金給付</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="myCorporatePension">あなたの受給額（年額）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="myCorporatePension" min="0" step="1" value="0">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <div style="display:flex; gap:0.5rem; margin-top:0.3rem;">
+                                        <div style="flex:1;">
+                                            <label for="myCorporatePensionStart"
+                                                style="font-size:0.75rem; color:var(--text-secondary);">開始年齢</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="myCorporatePensionStart" min="50" max="75"
+                                                    value="60">
+                                                <span class="unit">歳</span>
+                                            </div>
+                                        </div>
+                                        <div style="flex:1;">
+                                            <label for="myCorporatePensionDuration"
+                                                style="font-size:0.75rem; color:var(--text-secondary);">受給期間</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="myCorporatePensionDuration" min="1" max="50"
+                                                    value="10">
+                                                <span class="unit">年</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="partnerCorporatePension">パートナーの受給額（年額）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="partnerCorporatePension" min="0" step="1" value="0">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <div style="display:flex; gap:0.5rem; margin-top:0.3rem;">
+                                        <div style="flex:1;">
+                                            <label for="partnerCorporatePensionStart"
+                                                style="font-size:0.75rem; color:var(--text-secondary);">開始年齢</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="partnerCorporatePensionStart" min="50" max="75"
+                                                    value="60">
+                                                <span class="unit">歳</span>
+                                            </div>
+                                        </div>
+                                        <div style="flex:1;">
+                                            <label for="partnerCorporatePensionDuration"
+                                                style="font-size:0.75rem; color:var(--text-secondary);">受給期間</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="partnerCorporatePensionDuration" min="1"
+                                                    max="50" value="10">
+                                                <span class="unit">年</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Children Card -->
+                    <div class="card tab-family">
+                        <div class="card-header">
+                            <span class="card-icon">👶</span>
+                            <h2>子供の計画</h2>
+                        </div>
+                        <div class="card-body">
+                            <div id="childCostSummary" class="child-cost-summary" style="display:none;"></div>
+                            <div id="childrenContainer"></div>
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                                <button type="button" class="btn btn-add" style="flex:1" id="addChildBtn"
+                                    onclick="addChild('future')">
+                                    <span>＋</span> 将来の子供を追加
+                                </button>
+                                <button type="button" class="btn btn-add"
+                                    style="flex:1; border-color:rgba(16,185,129,0.3); color:#34d399;"
+                                    id="addExistingChildBtn" onclick="addChild('existing')">
+                                    <span>＋</span> 既にいる子供を追加
+                                </button>
+                            </div>
+                            <div class="form-row" style="margin-top: 1rem;">
+                                <div class="form-group">
+                                    <label for="myLeaveDuration">あなたの育休期間</label>
+                                    <select id="myLeaveDuration">
+                                        <option value="0">取得しない</option>
+                                        <option value="1">1ヶ月</option>
+                                        <option value="3">3ヶ月</option>
+                                        <option value="6">6ヶ月</option>
+                                        <option value="12" selected>12ヶ月（1年）</option>
+                                        <option value="18">18ヶ月（1年半）</option>
+                                        <option value="24">24ヶ月（2年）</option>
+                                        <option value="36">36ヶ月（3年）</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="partnerLeaveDuration">パートナーの育休期間</label>
+                                    <select id="partnerLeaveDuration">
+                                        <option value="0">取得しない</option>
+                                        <option value="1">1ヶ月</option>
+                                        <option value="3">3ヶ月</option>
+                                        <option value="6">6ヶ月</option>
+                                        <option value="10" selected>10ヶ月</option>
+                                        <option value="12">12ヶ月（1年）</option>
+                                        <option value="18">18ヶ月（1年半）</option>
+                                        <option value="24">24ヶ月（2年）</option>
+                                        <option value="36">36ヶ月（3年）</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Wedding / Grandchild Card -->
+                    <div class="card tab-family">
+                        <div class="card-header">
+                            <span class="card-icon">💒</span>
+                            <h2>結婚祝・孫の費用</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="toggle-row">
+                                <label class="toggle-label" for="weddingToggle">子供の結婚・孫の費用を含める</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="weddingToggle" checked onchange="toggleWedding()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="weddingDetails" class="collapsible">
+                                <span class="hint"
+                                    style="margin-bottom: 0.75rem; display:block;">子供が30歳で結婚する前提で計算します</span>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="weddingGift">結婚祝金（1人あたり）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="weddingGift" min="0" step="10" value="100">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="grandchildBirthGift">孫の出産祝（1人あたり）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="grandchildBirthGift" min="0" step="5" value="10">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                        <span class="hint">子供31歳の年に支出</span>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="grandchildSupport">孫への年間援助額</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="grandchildSupport" min="0" step="1" value="20">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                        <span class="hint">孫が0〜12歳の間（子供31〜43歳）</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parent Care Card (NEW) -->
+                    <div class="card tab-family">
+                        <div class="card-header">
+                            <span class="card-icon">🧓</span>
+                            <h2>親の介護・援助</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="toggle-row">
+                                <label class="toggle-label" for="parentCareToggle">親の介護・生活援助を含める</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="parentCareToggle"
+                                        onchange="$('parentCareDetails').classList.toggle('hidden', !this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="parentCareDetails" class="collapsible hidden">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="parentCareStartAge">援助開始（あなたの年齢）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="parentCareStartAge" min="30" max="80" value="50">
+                                            <span class="unit">歳</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="parentCareDuration">想定期間</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="parentCareDuration" min="1" max="20" value="5">
+                                            <span class="unit">年</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="parentCareInitial">初期費用（一時金）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="parentCareInitial" min="0" step="10" value="50">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                        <span class="hint">開始年齢の年に1回発生（施設入居費など）</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="parentCareMonthly">月額の仕送り・援助費用</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="parentCareMonthly" min="0" step="1" value="5">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                        <span class="hint">帰省交通費なども含めた月額平均</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Insurance Card (NEW) -->
+                    <div class="card tab-work">
+                        <div class="card-header">
+                            <span class="card-icon">🛡️</span>
+                            <h2>保険</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="lifeInsurance">生命保険料（月額・世帯合計）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="lifeInsurance" min="0" step="0.5" value="3">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <span class="hint">平均: 月約3.2万円（生命保険文化センター調べ）</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="insuranceEndAge">保険支払い終了年齢</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="insuranceEndAge" min="40" max="100" value="65">
+                                        <span class="unit">歳</span>
+                                    </div>
+                                    <span class="hint">終身払いの場合は100を入力</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Medical / Nursing Card (Revised) -->
+                    <div class="card tab-work">
+                        <div class="card-header">
+                            <span class="card-icon">🏥</span>
+                            <h2>老後の医療・介護費</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="elderlyMedicalMonthly">65歳以降の医療費（月額・世帯合計）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="elderlyMedicalMonthly" min="0" step="0.5" value="3.0">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <span class="hint">平均月額1~2万円程度</span>
+                                </div>
+                            </div>
+                            <div class="section-divider"></div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="nursingMonthlyCap">要介護時の費用（月額・世帯上限）</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="nursingMonthlyCap" min="0" step="0.1" value="8.8">
+                                        <span class="unit">万円</span>
+                                    </div>
+                                    <span class="hint">高額介護サービス費の上限目安（約4.4万円）など</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="nursingStartAge">介護費用発生開始年齢</label>
+                                    <div class="input-with-unit">
+                                        <input type="number" id="nursingStartAge" min="65" max="100" value="80">
+                                        <span class="unit">歳</span>
+                                    </div>
+                                    <span class="hint">想定する発生年齢（例: 80歳〜）</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Housing Card -->
+                    <div class="card tab-family">
+                        <div class="card-header">
+                            <span class="card-icon">🏠</span>
+                            <h2>住宅購入</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="toggle-row">
+                                <label class="toggle-label" for="housingToggle">住宅を購入する</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="housingToggle" onchange="toggleHousing()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="housingDetails" class="collapsible hidden">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>物件種別</label>
+                                        <div class="toggle-row compact"
+                                            style="justify-content: flex-start; gap: 1.5rem;">
+                                            <label
+                                                style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                                                <input type="radio" name="housingType" value="mansion" checked
+                                                    onchange="toggleHousingType()"> マンション
+                                            </label>
+                                            <label
+                                                style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                                                <input type="radio" name="housingType" value="house"
+                                                    onchange="toggleHousingType()">
+                                                戸建て
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="housingPrice">物件価格</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingPrice" min="0" step="100" value="5000"
+                                                onchange="autoCalcHousingTax()">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="housingDown">頭金</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingDown" min="0" step="100" value="500">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="housingFee">諸費用</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingFee" min="0" step="10" value="200">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="loanYears">ローン年数</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="loanYears" min="1" max="50" value="35">
+                                            <span class="unit">年</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="loanRate">初期金利（年利）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="loanRate" min="0" max="10" step="0.01" value="1.5">
+                                            <span class="unit">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row" id="mortgageRateReviewsContainer">
+                                    <div class="form-group review-entry"
+                                        style="position: relative; padding-right: 2rem; border: 1px solid var(--border-color); padding: 1rem; border-radius: 4px; margin-bottom: 0.5rem;">
+                                        <button type="button" class="btn btn-small"
+                                            style="position: absolute; top: 0.5rem; right: 0.5rem; background-color: #ef4444; color: white; padding: 0.2rem 0.5rem;"
+                                            onclick="removeMortgageReview(this)">×</button>
+                                        <label>想定金利（上昇後）</label>
+                                        <div style="display:flex; gap: 1rem; flex-wrap: wrap;">
+                                            <div style="flex:1;">
+                                                <div class="input-with-unit">
+                                                    <input type="number" class="futureLoanRateInput" min="0" max="10"
+                                                        step="0.01" value="2.5">
+                                                    <span class="unit">%</span>
+                                                </div>
+                                            </div>
+                                            <div style="flex:1; display:flex; align-items:center; gap:0.3rem;">
+                                                <label
+                                                    style="font-size:0.75rem; color:var(--text-secondary); white-space:nowrap;">上昇時期</label>
+                                                <div class="input-with-unit" style="width:100px;">
+                                                    <input type="number" class="futureLoanRateYearInput" min="1"
+                                                        max="50" value="10">
+                                                    <span class="unit">年後</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <button type="button" class="btn btn-add"
+                                            style="width: 100%; border-color: rgba(16,185,129,0.3); color: #34d399;"
+                                            onclick="addMortgageReview()">
+                                            <span>＋</span> 金利見直しの時期と金利を追加
+                                        </button>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="housingYear">購入時期</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingYear" min="0" max="40" value="3">
+                                            <span class="unit">年後</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="section-divider"></div>
+                                <div class="form-row">
+                                    <div class="form-group" id="mgmtFeeGroup">
+                                        <label for="housingManagementFee" id="mgmtFeeLabel">管理費・修繕積立金（月額）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingManagementFee" min="0" step="1000"
+                                                value="35000">
+                                            <span class="unit">円</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="housingTax">固定資産税（年額・目安）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingTax" min="0" value="120000">
+                                            <span class="unit">円</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="section-divider"></div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="housingDepreciation">不動産価値の下落率（年率）<span class="info-icon"
+                                                data-tooltip="建物部分の経年劣化などを加味した純資産価値の算出に使用します。">?</span></label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingDepreciation" min="0" max="5" step="0.1"
+                                                value="1.5">
+                                            <span class="unit">%</span>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="housingMaintenanceCost">定期修繕費（外壁塗装・設備更新など）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingMaintenanceCost" min="0" step="10"
+                                                value="150">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                        <div style="display:flex; align-items:center; gap:0.3rem; margin-top:0.3rem;">
+                                            <label for="housingMaintenanceFreq"
+                                                style="font-size:0.75rem; color:var(--text-secondary); white-space:nowrap;">実施周期</label>
+                                            <div class="input-with-unit" style="width:100px;">
+                                                <input type="number" id="housingMaintenanceFreq" min="5" max="30"
+                                                    value="15">
+                                                <span class="unit">年ごと</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="section-divider"></div>
+                                <h3 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--text-primary);">
+                                    持ち家の売却</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="housingSellAge">売却する年齢</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingSellAge" min="40" max="100" value="80">
+                                            <span class="unit">歳</span>
+                                        </div>
+                                        <span class="hint">設定年齢に達しない場合は売却されません</span>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="housingSellType">売却額の計算方法</label>
+                                        <select id="housingSellType" onchange="toggleHousingSellPrice()">
+                                            <option value="auto" selected>自動計算（下落率を考慮）</option>
+                                            <option value="manual">手動で設定</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group hidden" id="housingSellManualDetails">
+                                        <label for="housingSellManualPrice">売却額（手動設定）</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="housingSellManualPrice" min="0" step="100"
+                                                value="1500">
+                                            <span class="unit">万円</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Investment Card -->
+                    <div class="card tab-asset">
+                        <div class="card-header">
+                            <h2><span class="card-icon">📈</span>資産推移チャート</h2>
+                            <div class="header-actions"
+                                style="display: flex; gap: 1rem; align-items: center; margin-left: auto;">
+                                <div class="chart-controls"
+                                    style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem;">
+                                    <input type="checkbox" id="showVarianceToggle">
+                                    <label for="showVarianceToggle"
+                                        style="cursor: pointer; user-select: none;">NISA運用誤差を表示</label>
+                                </div>
+                                <div class="chart-controls"
+                                    style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem;">
+                                    <input type="checkbox" id="autoNisaWithdrawal" checked>
+                                    <label for="autoNisaWithdrawal"
+                                        style="cursor: pointer; user-select: none;">生活防衛資金を割ったらNISAを自動取崩</label>
+                                </div>
+                                <div class="chart-controls"
+                                    style="display: flex; align-items: center; gap: 5px; font-size: 0.85rem;">
+                                    <input type="checkbox" id="autoAssetSellToggle">
+                                    <label for="autoAssetSellToggle"
+                                        style="cursor: pointer; user-select: none;">資金不足時に資産取崩</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="subsection">
+                                <div class="toggle-row">
+                                    <label class="toggle-label" for="nisaToggle">NISAを利用する</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="nisaToggle" onchange="toggleNisa()">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div id="nisaDetails" class="collapsible hidden">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                        <!-- My NISA -->
+                                        <div
+                                            style="background: rgba(255,255,255,0.03); padding: 0.8rem; border-radius: 6px;">
+                                            <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent);">
+                                                自分</h4>
+                                            <div class="form-group">
+                                                <label for="nisaMonthlyMy">毎月の積立額</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="nisaMonthlyMy" min="0" max="30" step="0.1"
+                                                        value="5">
+                                                    <span class="unit">万円</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-group" style="margin-top:0.5rem;">
+                                                <label for="nisaReturnMy">想定利回り<span class="info-icon"
+                                                        data-tooltip="投資信託などの運用で期待できる年間の収益率です。一般的に3〜5%程度が目安ですが、元本保証ではありません。">?</span></label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="nisaReturnMy" min="0" max="15" step="0.5"
+                                                        value="5">
+                                                    <span class="unit">%</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-group" style="margin-top:0.5rem;">
+                                                <label for="nisaCurrentMy">現在残高</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="nisaCurrentMy" min="0" step="1" value="0">
+                                                    <span class="unit">万円</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-group" style="margin-top:0.5rem;">
+                                                <label for="nisaEndAgeMy">積立終了年齢</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="nisaEndAgeMy" min="20" max="75" value="60">
+                                                    <span class="unit">歳</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Partner NISA -->
+                                    <div
+                                        style="background: rgba(255,255,255,0.03); padding: 0.8rem; border-radius: 6px;">
+                                        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent);">
+                                            パートナー</h4>
+                                        <div class="form-group">
+                                            <label for="nisaMonthlyPartner">毎月の積立額</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="nisaMonthlyPartner" min="0" max="30" step="0.1"
+                                                    value="0">
+                                                <span class="unit">万円</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin-top:0.5rem;">
+                                            <label for="nisaReturnPartner">想定利回り<span class="info-icon"
+                                                    data-tooltip="投資信託などの運用で期待できる年間の収益率です。一般的に3〜5%程度が目安ですが、元本保証ではありません。">?</span></label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="nisaReturnPartner" min="0" max="15" step="0.5"
+                                                    value="5">
+                                                <span class="unit">%</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin-top:0.5rem;">
+                                            <label for="nisaCurrentPartner">現在残高</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="nisaCurrentPartner" min="0" step="1" value="0">
+                                                <span class="unit">万円</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin-top:0.5rem;">
+                                            <label for="nisaEndAgePartner">積立終了年齢</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="nisaEndAgePartner" min="20" max="75"
+                                                    value="60">
+                                                <span class="unit">歳</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="nisaVariance">運用誤差（±）<span class="info-icon"
+                                                data-tooltip="運用の不確実性をシミュレーションします。例:利回り5%±2%の場合、好調時7%・不調時3%の範囲を表示します。">?</span></label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="nisaVariance" min="0" max="10" step="0.5"
+                                                value="2">
+                                            <span class="unit">%</span>
+                                        </div>
+                                        <span class="hint">チャートに楽観・悲観シナリオの範囲を表示します</span>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <div class="toggle-row compact">
+                                            <label class="toggle-label" for="nisaSellToggle">途中で解約する</label>
+                                            <label class="toggle-switch">
+                                                <input type="checkbox" id="nisaSellToggle" onchange="toggleNisaSell()">
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
+                                        <div id="nisaSellDetails" class="collapsible hidden">
+                                            <div class="form-row"
+                                                style="align-items: flex-end; justify-content: space-between; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 1rem;">
+                                                <div class="form-group">
+                                                    <label for="nisaTargetBalance">パートナー100歳時点の残高目安</label>
+                                                    <div class="input-with-unit">
+                                                        <input type="number" id="nisaTargetBalance" min="0" step="10"
+                                                            value="500">
+                                                        <span class="unit">万円</span>
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="btn btn-small" onclick="autoCalcNisaSell()"
+                                                    style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4); height: 38px;">
+                                                    ✨ 取崩額を自動計算
+                                                </button>
+                                            </div>
+                                            <!-- Slot 1 -->
+                                            <div class="nisa-sell-block"
+                                                style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                                                <h4
+                                                    style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--accent); opacity: 0.9;">
+                                                    解約設定 ①</h4>
+                                                <label for="nisaSellYear1">解約時期（何年後）</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="nisaSellYear1" min="1" max="70" value="15">
+                                                    <span class="unit">年後</span>
+                                                </div>
+                                                <div class="form-row" style="margin-top:0.5rem;">
+                                                    <div class="form-group">
+                                                        <label for="nisaSellType1">解約方法</label>
+                                                        <select id="nisaSellType1" onchange="toggleNisaSellType(1)">
+                                                            <option value="none">設定なし</option>
+                                                            <option value="partial" selected>一部解約（金額指定・1回）</option>
+                                                            <option value="partial_annual">一部解約（金額指定・毎年）</option>
+                                                            <option value="full">全額解約</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div id="nisaPartialDetails1" class="collapsible"
+                                                    style="margin-top:0.5rem;">
+                                                    <label for="nisaSellAmount1">解約金額</label>
+                                                    <div class="input-with-unit">
+                                                        <input type="number" id="nisaSellAmount1" min="0" step="10"
+                                                            value="300">
+                                                        <span class="unit">万円</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Slot 2 -->
+                                            <div class="nisa-sell-block"
+                                                style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                                                <h4
+                                                    style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--accent); opacity: 0.9;">
+                                                    解約設定 ②</h4>
+                                                <label for="nisaSellYear2">解約時期（何年後）</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="nisaSellYear2" min="1" max="70" value="25">
+                                                    <span class="unit">年後</span>
+                                                </div>
+                                                <div class="form-row" style="margin-top:0.5rem;">
+                                                    <div class="form-group">
+                                                        <label for="nisaSellType2">解約方法</label>
+                                                        <select id="nisaSellType2" onchange="toggleNisaSellType(2)">
+                                                            <option value="none" selected>設定なし</option>
+                                                            <option value="partial">一部解約（金額指定）</option>
+                                                            <option value="full">全額解約</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div id="nisaPartialDetails2" class="collapsible hidden"
+                                                    style="margin-top:0.5rem;">
+                                                    <label for="nisaSellAmount2">解約金額</label>
+                                                    <div class="input-with-unit">
+                                                        <input type="number" id="nisaSellAmount2" min="0" step="10"
+                                                            value="500">
+                                                        <span class="unit">万円</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Slot 3 -->
+                                            <div class="nisa-sell-block">
+                                                <h4
+                                                    style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--accent); opacity: 0.9;">
+                                                    解約設定 ③</h4>
+                                                <label for="nisaSellYear3">解約時期（何年後）</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="nisaSellYear3" min="1" max="70" value="35">
+                                                    <span class="unit">年後</span>
+                                                </div>
+                                                <div class="form-row" style="margin-top:0.5rem;">
+                                                    <div class="form-group">
+                                                        <label for="nisaSellType3">解約方法</label>
+                                                        <select id="nisaSellType3" onchange="toggleNisaSellType(3)">
+                                                            <option value="none" selected>設定なし</option>
+                                                            <option value="partial">一部解約（金額指定）</option>
+                                                            <option value="full">全額解約</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div id="nisaPartialDetails3" class="collapsible hidden"
+                                                    style="margin-top:0.5rem;">
+                                                    <label for="nisaSellAmount3">解約金額</label>
+                                                    <div class="input-with-unit">
+                                                        <input type="number" id="nisaSellAmount3" min="0" step="10"
+                                                            value="1000">
+                                                        <span class="unit">万円</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="section-divider"></div>
+                        <div class="subsection">
+                            <div class="toggle-row">
+                                <label class="toggle-label" for="idecoToggle">iDeCoを利用する</label>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="idecoToggle" onchange="toggleIdeco()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div id="idecoDetails" class="collapsible hidden">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <!-- My iDeCo -->
+                                    <div
+                                        style="background: rgba(255,255,255,0.03); padding: 0.8rem; border-radius: 6px;">
+                                        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent);">
+                                            自分</h4>
+                                        <div class="form-group">
+                                            <label for="idecoMonthlyMy">毎月の掛金</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="idecoMonthlyMy" min="0.5" max="6.8" step="0.1"
+                                                    value="2.3">
+                                                <span class="unit">万円</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin-top:0.5rem;">
+                                            <label for="idecoReturnMy">想定利回り</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="idecoReturnMy" min="0" max="15" step="0.5"
+                                                    value="4">
+                                                <span class="unit">%</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin-top:0.5rem;">
+                                            <label for="idecoCurrentMy">現在残高</label>
+                                            <div class="input-with-unit">
+                                                <input type="number" id="idecoCurrentMy" min="0" step="1" value="0">
+                                                <span class="unit">万円</span>
+                                            </div>
+                                        </div>
+                                        <div class="form-group" style="margin-top:0.5rem;">
+                                            <label for="idecoReceiveMy">受取方法 (60歳以降)</label>
+                                            <select id="idecoReceiveMy" style="font-size:0.8rem;">
+                                                <option value="lump" selected>一括受取</option>
+                                                <option value="split">分割受取(15年)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <!-- Partner iDeCo -->
+                                    <div
+                                        style="background: rgba(255,255,255,0.03); padding: 0.8rem; border-radius: 6px;">
+                                        <h4
+                                            style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent); display: flex; align-items: center; justify-content: space-between;">
+                                            パートナー
+                                            <label
+                                                style="font-size: 0.75rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.3rem; font-weight: normal;">
+                                                <input type="checkbox" id="idecoPartnerActive"
+                                                    onchange="toggleIdecoPartner()">
+                                                利用する
+                                            </label>
+                                        </h4>
+                                        <div id="idecoPartnerFields">
+                                            <div class="form-group">
+                                                <label for="idecoMonthlyPartner">毎月の掛金</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="idecoMonthlyPartner" min="0.5" max="6.8"
+                                                        step="0.1" value="0">
+                                                    <span class="unit">万円</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-group" style="margin-top:0.5rem;">
+                                                <label for="idecoReturnPartner">想定利回り</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="idecoReturnPartner" min="0" max="15"
+                                                        step="0.5" value="4">
+                                                    <span class="unit">%</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-group" style="margin-top:0.5rem;">
+                                                <label for="idecoCurrentPartner">現在残高</label>
+                                                <div class="input-with-unit">
+                                                    <input type="number" id="idecoCurrentPartner" min="0" step="1"
+                                                        value="0">
+                                                    <span class="unit">万円</span>
+                                                </div>
+                                            </div>
+                                            <div class="form-group" style="margin-top:0.5rem;">
+                                                <label for="idecoReceivePartner">受取方法 (60歳以降)</label>
+                                                <select id="idecoReceivePartner" style="font-size:0.8rem;">
+                                                    <option value="lump" selected>一括受取</option>
+                                                    <option value="split">分割受取(15年)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Life Events / Variable Stats (Feature 3) -->
+                    <div class="card tab-event">
+                        <div class="card-header">
+                            <span class="card-icon">📅</span>
+                            <h2>ライフイベント・収支変動</h2>
+                        </div>
+                        <div class="card-body">
+                            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                                特定の時期に発生する臨時収入・支出や、ライフステージの変化による収支の増減を設定できます。
+                            </p>
+                            <div id="customEventsContainer"></div>
+                            <button type="button" class="btn btn-add" style="margin-top:0.5rem;"
+                                onclick="addCustomEvent()">
+                                <span>＋</span> イベントを追加
+                            </button>
+                        </div>
+                    </div>
+    </div>
+
+    <!-- Car Card -->
+    <div class="card tab-family">
+        <div class="card-header">
+            <span class="card-icon">🚗</span>
+            <h2>車の購入</h2>
+        </div>
+        <div class="card-body">
+            <div class="toggle-row">
+                <label class="toggle-label" for="carToggle">車を定期購入する</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="carToggle" onchange="toggleCar()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div id="carDetails" class="collapsible hidden">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="carCount">保有台数</label>
+                        <select id="carCount" style="margin-bottom:0.5rem; width:80px;">
+                            <option value="1" selected>1台</option>
+                            <option value="2">2台</option>
+                            <option value="3">3台</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="carPrice">ファミリーカーの価格(1台あたり)</label>
+                        <div class="input-with-unit">
+                            <input type="number" id="carPrice" min="0" step="50" value="450">
+                            <span class="unit">万円</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="carCycle">買い替えサイクル</label>
+                        <div class="input-with-unit">
+                            <input type="number" id="carCycle" min="1" max="20" value="7">
+                            <span class="unit">年</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="carMaintenance">車の年間維持費</label>
+                        <div class="input-with-unit">
+                            <input type="number" id="carMaintenance" min="0" step="5" value="40">
+                            <span class="unit">万円</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="section-divider"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="carCurrentAge">今乗っている車の経過年数</label>
+                        <div class="input-with-unit">
+                            <input type="number" id="carCurrentAge" min="0" max="20" value="0">
+                            <span class="unit">年</span>
+                        </div>
+                        <span class="hint">0の場合、次回のサイクル通りに購入します</span>
+                    </div>
+                </div>
+                <div class="section-divider"></div>
+                <div class="form-row" style="align-items: flex-end;">
+                    <div class="form-group">
+                        <label for="carEndAgeInput">車を手放す年齢</label>
+                        <div class="input-with-unit">
+                            <input type="number" id="carEndAgeInput" min="20" max="100" value="100">
+                            <span class="unit">歳</span>
+                        </div>
+                        <span class="hint">この年齢以降は維持費・買替費用が発生しません</span>
+                    </div>
+                    <div class="form-group" style="flex:none; margin-bottom:1.5rem;">
+                        <button type="button" class="btn btn-small"
+                            style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4);"
+                            onclick="document.getElementById('carEndAgeInput').value=80; document.getElementById('calculateBtn').click();">
+                            ✨ 80歳で手放す設定にする
+                        </button>
+                    </div>
+                </div>
+                <div class="section-divider"></div>
+                <div class="toggle-row compact">
+                    <label class="toggle-label" for="carDownsizeToggle">子供独立後に小型車へ切替</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="carDownsizeToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="form-row" style="margin-top:0.5rem;">
+                    <div class="form-group">
+                        <label for="carCompactPrice">小型車の価格</label>
+                        <div class="input-with-unit">
+                            <input type="number" id="carCompactPrice" min="0" step="50" value="250">
+                            <span class="unit">万円</span>
+                        </div>
+                        <span class="hint">子供が全員22歳以上になった後の車両価格</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button type="submit" class="btn btn-primary btn-calculate" id="calculateBtn">
+            <span class="btn-icon">📊</span>
+            シミュレーションを実行
+        </button>
+        <button type="button" class="btn btn-scenario" id="addScenarioBtn" onclick="saveScenario()">
+            <span class="btn-icon">📌</span>
+            シナリオとして保存
+        </button>
+        <button type="button" class="btn btn-secondary" id="resetDataBtn" onclick="clearData()">
+            <span class="btn-icon">🗑️</span>
+            全データ削除
+        </button>
+    </div>
+    </form>
+    </section>
+
+    <!-- Results Section -->
+    <section class="results-section hidden" id="resultsSection">
+        <!-- Scenario Comparison Banner -->
+        <div class="scenario-bar" id="scenarioBar" style="display:none;">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-icon">🔄</span>
+                    <h2>シナリオ比較</h2>
+                </div>
+                <div class="card-body">
+                    <div class="scenario-chips" id="scenarioChips"></div>
+                    <button class="btn btn-small btn-danger" onclick="clearScenarios()">全シナリオを削除</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Section (Feature 4) -->
+        <div class="card comparison-card hidden" id="comparisonCard">
+            <div class="card-header">
+                <span class="card-icon">⚖️</span>
+                <h2>シナリオ比較</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-wrapper">
+                    <table class="comparison-table" id="comparisonTable">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Section (Feature 2) -->
+        <div class="card timeline-card">
+            <div class="card-header">
+                <span class="card-icon">⏱️</span>
+                <h2>ライフイベント表</h2>
+            </div>
+            <div class="card-body">
+                <div class="timeline-container" id="timelineContainer"></div>
+            </div>
+        </div>
+
+        <div class="card results-summary-card">
+            <div class="card-header">
+                <span class="card-icon">📈</span>
+                <h2>資産推移チャート</h2>
+            </div>
+            <div class="card-body chart-container">
+                <canvas id="assetChart"></canvas>
+            </div>
+            <div class="chart-legend" id="chartLegend"></div>
+        </div>
+
+        <div class="card summary-stats-card">
+            <div class="card-header">
+                <span class="card-icon">📋</span>
+                <h2>サマリー</h2>
+            </div>
+            <div class="card-body">
+                <div class="stats-grid" id="summaryStats"></div>
+            </div>
+        </div>
+
+        <!-- Lifetime Expense Pie Chart (Feature 3) -->
+        <div class="card pie-chart-card">
+            <div class="card-header">
+                <span class="card-icon">🥧</span>
+                <h2>生涯支出の内訳（100歳まで）</h2>
+            </div>
+            <div class="card-body chart-container" style="height: 300px;">
+                <canvas id="expensePieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Advice Card (shown only on fund shortage) -->
+        <div class="card advice-card" id="adviceCard" style="display:none;">
+            <div class="card-header">
+                <span class="card-icon">💡</span>
+                <h2>改善アドバイス</h2>
+            </div>
+            <div class="card-body" id="adviceContent"></div>
+        </div>
+
+        <div class="card results-table-card">
+            <div class="card-header">
+                <span class="card-icon">📅</span>
+                <h2>年度別収支一覧</h2>
+            </div>
+            <div class="card-body">
+                <div class="table-wrapper">
+                    <table id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>年度</th>
+                                <th>あなた<br>年齢</th>
+                                <th>パートナー<br>年齢</th>
+                                <th>世帯収入<br>（万円）</th>
+                                <th>支出合計<br>（万円）</th>
+                                <th>年間収支<br>（万円）</th>
+                                <th>累積資産<br>（万円）</th>
+                                <th>NISA残高<br><span class="profit-label">(含み益)</span></th>
+                                <th>iDeCo残高<br><span class="profit-label">(含み益)</span></th>
+                                <th>ライフイベント</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Share Results Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-icon">📤</span>
+                <h2>シミュレーション結果を共有</h2>
+            </div>
+            <div class="card-body">
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                    シミュレーション結果をパートナーや家族に共有できます。<br>
+                    受信者はリンクから同じ設定でシミュレーションを確認できます。
+                </p>
+                <div class="action-buttons" style="justify-content: flex-start; padding:0; gap:0.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="shareViaLine()"
+                        style="color:#06c755; border-color:#06c755; background:rgba(6,199,85,0.1);">
+                        <span class="btn-icon">💬</span> LINEで送る
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="shareViaEmail()">
+                        <span class="btn-icon">✉️</span> メールで送る
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export & Back Buttons -->
+        <div class="action-buttons bottom-actions no-print">
+            <button class="btn btn-secondary" onclick="exportCSV()">
+                <span class="btn-icon">📄</span> CSV出力
+            </button>
+            <button class="btn btn-secondary" onclick="exportToPDF()">
+                <span class="btn-icon">🖨️</span> PDFレポート出力
+            </button>
+            <button class="btn btn-secondary" onclick="exportImage()">
+                <span class="btn-icon">🖼️</span> 画像として保存
+            </button>
+            <button class="btn btn-secondary btn-back" onclick="showInput()">
+                ← 入力画面に戻る
+            </button>
+        </div>
+    </section>
+    </main>
+
+    <footer class="app-footer">
+        <p>※ このシミュレーションは概算です。実際の金額とは異なる場合があります。</p>
+    </footer>
+    </div>
+
+    <!-- Floating Action Button for Chart Focus -->
+    <button id="fabChart" onclick="scrollToChart()" title="チャートを見る">
+        📈
+    </button>
+
+    <!-- Sticky Summary -->
+    <div class="sticky-summary" id="stickySummary">
+        <div class="summary-content">
+            <div class="summary-item">
+                <span class="label">資産寿命</span>
+                <span class="value" id="stickyAssetLife">---歳</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">100歳残高</span>
+                <span class="value" id="stickyEndBalance">---万円</span>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="runSimulation(); scrollToChart();">
+            <span class="btn-icon">⚡</span>計算
+        </button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
