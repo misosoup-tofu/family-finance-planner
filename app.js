@@ -382,12 +382,13 @@ function addCustomEvent() {
 
 function getCustomEvents() {
     const rows = document.querySelectorAll('.custom-event-row');
-    return Array.from(rows).map(row => ({
+    const events = Array.from(rows).map(row => ({
         age: parseInt(row.querySelector('.evt-age').value) || 0,
         type: row.querySelector('.evt-type').value,
         amount: parseFloat(row.querySelector('.evt-amount').value) || 0,
         name: row.querySelector('.custom-event-name').value || 'イベント'
     }));
+    return events;
 }
 
 // --- Calc Helpers ---
@@ -721,16 +722,20 @@ function autoCalcHousingTax() {
 
 // --- Main Simulation ---
 function runSimulation() {
+    console.log("runSimulation -> STARTED");
     // 1. Basic Validation
     const rawInputs = document.querySelectorAll('#planForm input[type="number"]');
+    console.log("Checking validation for", rawInputs.length, "inputs");
     for (let i = 0; i < rawInputs.length; i++) {
         const input = rawInputs[i];
         if (!input.checkValidity()) {
+            console.log("Validation failed for input:", input.id, input.name, input.value);
             alert(`入力エラー: 「${input.previousElementSibling?.textContent || input.id}」の値が不正です。正しい数値を入力してください。`);
             input.focus();
             return; // Stop simulation
         }
     }
+    console.log("Validation passed");
 
     // Cumulative Tracking for Pie Chart
     let lifetimeExpenses = {
@@ -869,7 +874,7 @@ function runSimulation() {
         housingSellType = $('housingSellType').value;
         housingSellManualPrice = val('housingSellManualPrice');
     }
-    const mortgagePrincipal = housingPrice - housingDown;
+    let mortgagePrincipal = housingPrice - housingDown;
     const annualMortgage = hasHousing ? calcAnnualMortgage(mortgagePrincipal, loanYears, loanRate) : 0;
 
     // Car
@@ -967,7 +972,7 @@ function runSimulation() {
             }
         }
     }
-
+    // Start Simulation Loop
     for (let y = 0; y < years; y++) {
         const currentMyAge = myAge + y;
         const currentPartnerAge = partnerAge + y;
@@ -1829,6 +1834,7 @@ function runSimulation() {
 
     window.lifetimeExpenses = lifetimeExpenses;
     window.lastSimulationData = data;
+    console.log("runSimulation -> FINISHED, returning data length:", data.length);
     return data;
 }
 
@@ -3808,7 +3814,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (form) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
+            console.log("form submit triggered!");
             const data = runSimulation();
+            console.log("runSimulation returned:", data);
             if (data) {
                 renderResults(data);
             }
