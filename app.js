@@ -580,12 +580,12 @@ function calcAnnualMortgage(principal, years, ratePercent) {
     return Math.round(monthly * 12 / 10000);
 }
 
-/** 児童手当（年額・万円） */
-function calcChildAllowance(childAge) {
-    if (childAge < 0) return 0;
-    if (childAge < 3) return 18;
-    if (childAge < 15) return 12;
-    return 0;
+/** 児童手当（年額・万円） 新制度(2024年10月～)対応 */
+function calcChildAllowance(childAge, rankUnder23) {
+    if (childAge < 0 || childAge > 18) return 0; // 18歳到達後の3月まで（ここでは18歳までとする）
+    if (rankUnder23 >= 3) return 36; // 第3子以降（多子加算）
+    if (childAge < 3) return 18; // 3歳未満
+    return 12; // 3歳〜18歳
 }
 
 /** 教育費（年額・万円）— base amount before inflation */
@@ -715,8 +715,18 @@ function autoCalcHousingTax() {
 }
 
 // --- Main Simulation ---
-// --- Main Simulation ---
 function runSimulation() {
+    // 1. Basic Validation
+    const rawInputs = document.querySelectorAll('#planForm input[type="number"]');
+    for (let i = 0; i < rawInputs.length; i++) {
+        const input = rawInputs[i];
+        if (!input.checkValidity()) {
+            alert(`入力エラー: 「${input.previousElementSibling?.textContent || input.id}」の値が不正です。正しい数値を入力してください。`);
+            input.focus();
+            return; // Stop simulation
+        }
+    }
+
     // Cumulative Tracking for Pie Chart
     let lifetimeExpenses = {
         housing: 0,
@@ -1079,11 +1089,19 @@ function runSimulation() {
         let myNet = 0;
         if (myWorking) {
             if (!myOnLeave) {
-                myNet = calcNetIncome(myCurrentGross, currentMyAge, myDependents);
+                // Bracket Creep Fix: Deflate gross, calculate net, then inflate net
+                const deflatedGross = myCurrentGross / inflationMult;
+                const deflatedNet = calcNetIncome(deflatedGross, currentMyAge, myDependents);
+                myNet = deflatedNet * inflationMult;
             } else {
                 const workMonths = 12 - myLeaveMonthsThisYear;
                 const salaryPart = (myCurrentGross * (workMonths / 12));
-                myNet += calcNetIncome(salaryPart, currentMyAge, myDependents);
+
+                const deflatedSalaryPart = salaryPart / inflationMult;
+                const deflatedNetPart = calcNetIncome(deflatedSalaryPart, currentMyAge, myDependents);
+                myNet += deflatedNetPart * inflationMult;
+
+                // Allowance is usually based on past real salary, but for simplicity we keep it as is or deflate
                 const allowance = calcParentalLeaveAllowance(myCurrentGross, 0, myLeaveMonthsThisYear);
                 myNet += allowance;
                 // Leave allowance is strictly not "salary" but for simplicity grouped here or OTHER?
@@ -1097,11 +1115,17 @@ function runSimulation() {
         let partnerNet = 0;
         if (partnerWorking) {
             if (!partnerOnLeave) {
-                partnerNet = calcNetIncome(partnerCurrentGross, currentPartnerAge, partnerDependents);
+                const deflatedGross = partnerCurrentGross / inflationMult;
+                const deflatedNet = calcNetIncome(deflatedGross, currentPartnerAge, partnerDependents);
+                partnerNet = deflatedNet * inflationMult;
             } else {
                 const workMonths = 12 - partnerLeaveMonthsThisYear;
                 const salaryPart = (partnerCurrentGross * (workMonths / 12));
-                partnerNet += calcNetIncome(salaryPart, currentPartnerAge, partnerDependents);
+
+                const deflatedSalaryPart = salaryPart / inflationMult;
+                const deflatedNetPart = calcNetIncome(deflatedSalaryPart, currentPartnerAge, partnerDependents);
+                partnerNet += deflatedNetPart * inflationMult;
+
                 const allowance = calcParentalLeaveAllowance(partnerCurrentGross, 0, partnerLeaveMonthsThisYear);
                 partnerNet += allowance;
             }
@@ -1126,15 +1150,27 @@ function runSimulation() {
         // Pension
         // 実際の年金増加率は、インフレ率からマクロ経済スライド分を引いたもの
         const pensionRealGrowthRate = Math.max(0, inflationRate - pensionMacroSlide);
-        const pensionGrowthMult = Math.pow(1 + pensionRealGrowthRate, Math.max(0, y));
+        // Base is at age 65 (or retirement). Until age 65, the base pension grows with wage growth (effectiveSalaryGrowthRate).
+        // For simplicity, we assume wage growth up to age 65, then inflation-macro slide after 65.
+        // y is years from now. 
+        // Growth up to age 65 for the base amount:
+        const myYearsTo65 = Math.max(0, 65 - myAge);
+        const partnerYearsTo65 = Math.max(0, 65 - partnerAge);
+
+        const myPensionBase = myPension * Math.pow(1 + effectiveSalaryGrowthRate, myYearsTo65);
+        const partnerPensionBase = partnerPension * Math.pow(1 + effectiveSalaryGrowthRate, partnerYearsTo65);
+
+        // Growth after 65:
+        const myYearsOver65 = Math.max(0, currentMyAge - 65);
+        const partnerYearsOver65 = Math.max(0, currentPartnerAge - 65);
 
         if (currentMyAge >= 65) {
-            const pMy = myPension * pensionGrowthMult;
+            const pMy = myPensionBase * Math.pow(1 + pensionRealGrowthRate, myYearsOver65);
             yearIncome += pMy;
             breakdown.income.pensionMy += pMy;
         }
         if (currentPartnerAge >= 65) {
-            const pPartner = partnerPension * pensionGrowthMult;
+            const pPartner = partnerPensionBase * Math.pow(1 + pensionRealGrowthRate, partnerYearsOver65);
             yearIncome += pPartner;
             breakdown.income.pensionPartner += pPartner;
         }
@@ -1169,6 +1205,16 @@ function runSimulation() {
         breakdown.expense.other += specialEx;
 
         // Kids
+        // 児童手当の多子加算カウント用：22歳以下の子供リストを年齢順（年長順）にソート
+        const childrenUnder23 = children
+            .map((c, idx) => ({ idx, age: y - c.birthYear }))
+            .filter(c => c.age >= 0 && c.age <= 22)
+            .sort((a, b) => b.age - a.age); // 年上の子が最初
+        const rankMap = {};
+        childrenUnder23.forEach((c, rank) => {
+            rankMap[c.idx] = rank + 1; // 1-indexed (1:長子, 2:第2子, 3:第3子...)
+        });
+
         children.forEach((child, i) => {
             const childAge = y - child.birthYear;
             if (childAge === 0 && !child.isExisting) {
@@ -1178,7 +1224,8 @@ function runSimulation() {
             }
             if (childAge >= 0) {
                 // Allowance
-                const allowance = calcChildAllowance(childAge);
+                const rank = rankMap[i] || 0; // 22歳以下でなければ0
+                const allowance = calcChildAllowance(childAge, rank);
                 yearIncome += allowance;
                 breakdown.income.other += allowance;
 
@@ -1215,13 +1262,15 @@ function runSimulation() {
         customEvents.forEach(evt => {
             // One-time
             if (evt.type === 'expense_once' && currentMyAge === evt.age) {
-                yearExpense += evt.amount;
-                breakdown.expense.event += evt.amount;
+                const amountInf = evt.amount * inflationMult;
+                yearExpense += amountInf;
+                breakdown.expense.event += amountInf;
                 events.push({ type: 'medical', label: evt.name }); // Use generic or existing style
             }
             if (evt.type === 'income_once' && currentMyAge === evt.age) {
-                yearIncome += evt.amount;
-                breakdown.income.other += evt.amount;
+                const amountInf = evt.amount * inflationMult;
+                yearIncome += amountInf;
+                breakdown.income.other += amountInf;
                 events.push({ type: 'money', label: evt.name });
             }
             // Annual (From age)
@@ -1235,8 +1284,8 @@ function runSimulation() {
                     breakdown.expense.other -= evt.amount * inflationMult; // reduce cost
                 }
                 if (evt.type === 'income_annual') {
-                    yearIncome += evt.amount; // Assume base amount adds to income
-                    breakdown.income.other += evt.amount;
+                    yearIncome += evt.amount * inflationMult; // Assume base amount adds to income
+                    breakdown.income.other += evt.amount * inflationMult;
                 }
             }
             // Add marker for annual start
@@ -1297,6 +1346,17 @@ function runSimulation() {
 
             if (!isHouseSold) {
                 if (yearsSincePurchase === 0) {
+                    // Housing Inflation Fix: Apply inflation from current year up to purchase year
+                    const housingInflMult = Math.pow(1 + inflationRate, housingYearOffset);
+                    housingPrice = housingPrice * housingInflMult;
+                    housingDown = housingDown * housingInflMult;
+                    housingFee = housingFee * housingInflMult;
+
+                    // Re-calculate mortgage principle
+                    const newMortgagePrincipal = housingPrice - housingDown;
+                    // Apply the new mortgage principle for future years
+                    mortgagePrincipal = newMortgagePrincipal;
+
                     yearExpense += housingDown + housingFee;
                     breakdown.expense.housing += housingDown + housingFee;
                     events.push({ type: 'housing', label: '住宅購入' });
@@ -1357,9 +1417,10 @@ function runSimulation() {
                 }
 
                 // Running Costs (Mgmt + Tax)
+                // 管理費等はインフレ影響を受けるが、税金は評価額に伴うためインフレから除外
                 const annualMgmt = housingMgmtFee * 12 / 10000;
                 const annualTax = housingTax / 10000;
-                const houseRun = (annualMgmt + annualTax) * inflationMult;
+                const houseRun = (annualMgmt * inflationMult) + annualTax;
                 yearExpense += houseRun;
                 breakdown.expense.housing += houseRun;
             }
@@ -1413,7 +1474,7 @@ function runSimulation() {
         // Parent Care
         if (hasParentCare) {
             if (currentMyAge === parentCareStartAge) {
-                careCost += parentCareInitial;
+                careCost += parentCareInitial * inflationMult;
                 events.push({ type: 'care', label: '親の介護(初期費用)' });
             }
             if (currentMyAge >= parentCareStartAge && currentMyAge < parentCareStartAge + parentCareDuration) {
@@ -1535,15 +1596,15 @@ function runSimulation() {
         // NISA Interaction
         if (hasNisa) {
             // (nisaSold check removed)
-            // My Contribution
-            const contMy = (currentMyAge < nisaEndAgeMy) ? nisaMonthlyMy * 12 * inflationMult : 0;
+            // My Contribution (NISA Limits Fix: Remove inflation multiplier from contributions)
+            const contMy = (currentMyAge < nisaEndAgeMy) ? nisaMonthlyMy * 12 : 0;
             yearExpense += contMy;
             breakdown.expense.investment += contMy;
             nisaPrincipalMy += contMy;
             nisaBalanceMy = (nisaBalanceMy + contMy) * (1 + nisaReturnMy);
 
             // Partner Contribution
-            const contPartner = (currentPartnerAge < nisaEndAgePartner) ? nisaMonthlyPartner * 12 * inflationMult : 0;
+            const contPartner = (currentPartnerAge < nisaEndAgePartner) ? nisaMonthlyPartner * 12 : 0;
             yearExpense += contPartner;
             breakdown.expense.investment += contPartner;
             nisaPrincipalPartner += contPartner;
