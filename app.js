@@ -344,7 +344,12 @@ function loadPreset(type) {
     }
 
     // Trigger calc
-    setTimeout(runSimulation, 100);
+    setTimeout(() => {
+        const data = runSimulation();
+        if (data && !$('resultsSection').classList.contains('hidden')) {
+            renderResults(data, true);
+        }
+    }, 100);
 }
 
 // --- Feature 3: Custom Events ---
@@ -3803,7 +3808,10 @@ window.addEventListener('DOMContentLoaded', () => {
     if (form) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            runSimulation();
+            const data = runSimulation();
+            if (data) {
+                renderResults(data);
+            }
         });
     }
 });
@@ -4206,7 +4214,12 @@ function loadData() {
         }
 
         // 5. Run Calc
-        setTimeout(runSimulation, 200);
+        setTimeout(() => {
+            if (!$('resultsSection').classList.contains('hidden')) {
+                const data = runSimulation();
+                if (data) renderResults(data, true);
+            }
+        }, 200);
 
     } catch (e) {
         console.error('Failed to load data', e);

@@ -1593,7 +1593,8 @@
                 <span class="value" id="stickyEndBalance">---万円</span>
             </div>
         </div>
-        <button class="btn btn-primary" onclick="runSimulation(); scrollToChart();">
+        <button class="btn btn-primary"
+            onclick="const d = runSimulation(); if(d) { renderResults(d); scrollToChart(); }">
             <span class="btn-icon">⚡</span>計算
         </button>
     </div>
