@@ -1167,8 +1167,9 @@ function runSimulation() {
         const myYearsTo65 = Math.max(0, 65 - myAge);
         const partnerYearsTo65 = Math.max(0, 65 - partnerAge);
 
-        const myPensionBase = myPension * Math.pow(1 + effectiveSalaryGrowthRate, myYearsTo65);
-        const partnerPensionBase = partnerPension * Math.pow(1 + effectiveSalaryGrowthRate, partnerYearsTo65);
+        const pre65GrowthRate = Math.max(0, effectiveSalaryGrowthRate - pensionMacroSlide);
+        const myPensionBase = myPension * Math.pow(1 + pre65GrowthRate, myYearsTo65);
+        const partnerPensionBase = partnerPension * Math.pow(1 + pre65GrowthRate, partnerYearsTo65);
 
         // Growth after 65:
         const myYearsOver65 = Math.max(0, currentMyAge - 65);
